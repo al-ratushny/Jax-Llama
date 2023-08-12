@@ -1,0 +1,5 @@
+matplotlib
+jax
+jaxlib
+flax
+clu
