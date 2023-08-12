@@ -40,6 +40,6 @@ class Dataset:
             minval=0,
             maxval=batch_data.shape[0] - CONTEXT_WINDOW - 1,
         )
-        x = jnp.stack([jnp.array(batch_data[i:i + CONTEXT_WINDOW]) for i in ix])
-        y = jnp.stack([jnp.array(batch_data[i + 1:i + CONTEXT_WINDOW + 1]) for i in ix])
+        x = jnp.stack([batch_data[i:i + CONTEXT_WINDOW] for i in ix])
+        y = jnp.stack([batch_data[i + 1:i + CONTEXT_WINDOW + 1] for i in ix])
         return x, y
