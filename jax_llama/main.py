@@ -107,7 +107,7 @@ dataset = Dataset(DATA_FILE, tokenizer)
 xs, _ = dataset.get_batch('train')
 rng = jax.random.PRNGKey(0)
 model = SimpleModel()
-print(nn.tabulate(model, rng)(xs[0]))
+print(nn.tabulate(model, rng)(xs))
 state = init_train_state(model, rng, xs)
 state = train_and_validate(dataset, state)
 
