@@ -1,12 +1,13 @@
 # DATA
 DATA_FILE: str = 'data/tiny_shakespeare.txt'
 BATCH_SIZE: int = 64
-CONTEXT_WINDOW = 16
+CONTEXT_WINDOW = 10
 TRAIN_SIZE = 0.9
 VOCAB_SIZE = 65
 
 # MODEL
 D_MODEL = 128
+N_HEADS = 8
 
 # TRAIN
 N_EPOCHS = 1

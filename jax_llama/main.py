@@ -77,7 +77,7 @@ def train_and_validate(dataset: Dataset, state: train_state.TrainState):
             train_metrics.append(metrics)
             if step % 10 == 0:
                 tqdm.write(f'train; {epoch}/{N_EPOCHS}; {step}/{TRAIN_STEPS}; {metrics}')
-        print(accumulate_metrics(train_metrics))
+        print(accumulate_metrics(train_metrics[-100:]))
         train_metrics = []
 
         test_metrics = []
@@ -87,18 +87,22 @@ def train_and_validate(dataset: Dataset, state: train_state.TrainState):
             test_metrics.append(metrics)
             if step % 10 == 0:
                 tqdm.write(f'test; {epoch}/{N_EPOCHS}; {step}/{TEST_STEPS}; {metrics}')
-        print(accumulate_metrics(test_metrics))
+        print(accumulate_metrics(test_metrics[-100:]))
         test_metrics = []
 
     return state
 
 
-def predict(state, xs, n_tokens=32):
-    for _ in range(n_tokens):
-        logits = state.apply_fn({'params': state.params}, xs[-CONTEXT_WINDOW:])
-        last_prediction = logits[-1, :]
+def predict(state, xs, n_tokens=10):
+    for i in range(n_tokens):
+        logits = state.apply_fn(
+            {'params': state.params},
+            np.expand_dims(xs[-CONTEXT_WINDOW:], 0),
+        )
+        last_prediction = logits[-1, -1]
         p = nn.softmax(last_prediction, axis=-1)
         xs = jnp.append(xs, jnp.argmax(p))
+        print(xs)
     return tokenizer.decode(xs)
 
 
