@@ -3,6 +3,8 @@ from jax import numpy as jnp
 from jax_llama.config import (
     CONTEXT_WINDOW, D_MODEL, VOCAB_SIZE, N_HEADS,
 )
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 class SimpleModel(nn.Module):
@@ -15,11 +17,21 @@ class SimpleModel(nn.Module):
 
         x = nn.RMSNorm()(x)
         x_t = nn.Dense(D_MODEL)(x)
-        x_t = nn.relu(x)
+        x_t = SwiGLU()(x)
         x += x_t
 
         x = nn.Dense(VOCAB_SIZE)(x)
         return x
+
+
+class SwiGLU(nn.Module):
+    @nn.compact
+    def __call__(self, x, beta: float = 1.0):
+        gate_dense = nn.Dense(D_MODEL)(x)
+        # !!!element-wise multiplication
+        gate = gate_dense * nn.sigmoid(beta * gate_dense)
+        x = nn.Dense(D_MODEL)(x)
+        return gate * x
 
 
 class RoPEAttention(nn.Module):
@@ -27,7 +39,7 @@ class RoPEAttention(nn.Module):
     def __call__(self, x):
         heads = []
 
-        R = self.__get_rotation_matrix()
+        R = __get_rotation_matrix()
         for _ in range(N_HEADS):
             query_i = nn.Dense(D_MODEL)(x)
             keys_i = nn.Dense(D_MODEL)(x)
@@ -50,15 +62,29 @@ class RoPEAttention(nn.Module):
         x = jnp.matmul(x, values)
         return x
 
-    def __get_rotation_matrix(self):
-        R = jnp.zeros((CONTEXT_WINDOW, D_MODEL, D_MODEL))
-        for pos in range(CONTEXT_WINDOW):
-            for i in range(D_MODEL // 2):
-                theta = 10000. ** (-2. * (i - 1) / D_MODEL)
-                m_theta = pos * theta
-                j, k = 2 * i, 2 * i + 1
-                R.at[pos, j, j].set(jnp.cos(m_theta))
-                R.at[pos, j, k].set(-jnp.sin(m_theta))
-                R.at[pos, k, j].set(jnp.sin(m_theta))
-                R.at[pos, k, k].set(jnp.cos(m_theta))
-        return R
+
+def __get_rotation_matrix():
+    R = jnp.zeros((CONTEXT_WINDOW, D_MODEL, D_MODEL))
+    for pos in range(CONTEXT_WINDOW):
+        for i in range(D_MODEL // 2):
+            theta = 10000.0 ** (-2.0 * (i - 1) / D_MODEL)
+            m_theta = pos * theta
+            j, k = 2 * i, 2 * i + 1
+            R = R.at[pos, j, j].set(jnp.cos(m_theta))
+            R = R.at[pos, j, k].set(-jnp.sin(m_theta))
+            R = R.at[pos, k, j].set(jnp.sin(m_theta))
+            R = R.at[pos, k, k].set(jnp.cos(m_theta))
+    return R
+
+
+def __plot_rotation_matrix():
+    # view test for a rotation matrix,
+    # since it's always useful to see
+    # that it works as you expect it
+    R = __get_rotation_matrix()  # type: ignore
+    sns.heatmap(R[10, :, :])
+    plt.savefig('rotation_matrix.png')
+
+
+if __name__ == "__main__":
+    __plot_rotation_matrix()
