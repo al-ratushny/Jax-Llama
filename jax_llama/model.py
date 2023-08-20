@@ -1,26 +1,36 @@
 from flax import linen as nn
 from jax import numpy as jnp
 from jax_llama.config import (
-    CONTEXT_WINDOW, D_MODEL, VOCAB_SIZE, N_HEADS,
+    CONTEXT_WINDOW, D_MODEL, VOCAB_SIZE,
+    N_HEADS, N_LAYES,
 )
 import seaborn as sns
 import matplotlib.pyplot as plt
 
 
-class SimpleModel(nn.Module):
+class Llama(nn.Module):
     @nn.compact
     def __call__(self, x):
         x = nn.Embed(VOCAB_SIZE, D_MODEL)(x)
+        for _ in range(N_LAYES):
+            x = LlamaBlock()(x)
+        ff = nn.Sequential([
+            nn.Dense(D_MODEL),
+            SwiGLU(),
+            nn.Dense(VOCAB_SIZE),
+        ])
+        x = ff(x)
+        return x
 
+
+class LlamaBlock(nn.Module):
+    @nn.compact
+    def __call__(self, x):
         x = nn.RMSNorm()(x)
         x += RoPEAttention()(x)
-
         x = nn.RMSNorm()(x)
-        x_t = nn.Dense(D_MODEL)(x)
-        x_t = SwiGLU()(x)
-        x += x_t
-
-        x = nn.Dense(VOCAB_SIZE)(x)
+        ff = nn.Sequential([nn.Dense(D_MODEL), SwiGLU()])
+        x += ff(x)
         return x
 
 
@@ -39,7 +49,7 @@ class RoPEAttention(nn.Module):
     def __call__(self, x):
         heads = []
 
-        R = __get_rotation_matrix()
+        R = _get_rotation_matrix()
         for _ in range(N_HEADS):
             query_i = nn.Dense(D_MODEL)(x)
             keys_i = nn.Dense(D_MODEL)(x)
@@ -63,7 +73,7 @@ class RoPEAttention(nn.Module):
         return x
 
 
-def __get_rotation_matrix():
+def _get_rotation_matrix():
     R = jnp.zeros((CONTEXT_WINDOW, D_MODEL, D_MODEL))
     for pos in range(CONTEXT_WINDOW):
         for i in range(D_MODEL // 2):
@@ -81,7 +91,7 @@ def __plot_rotation_matrix():
     # view test for a rotation matrix,
     # since it's always useful to see
     # that it works as you expect it
-    R = __get_rotation_matrix()  # type: ignore
+    R = _get_rotation_matrix()  # type: ignore
     sns.heatmap(R[10, :, :])
     plt.savefig('rotation_matrix.png')
 

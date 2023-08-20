@@ -9,7 +9,7 @@ from tqdm import tqdm, trange
 from jax_llama.config import (CONTEXT_WINDOW, DATA_FILE, LR, N_EPOCHS,
                               TEST_STEPS, TRAIN_STEPS, VOCAB_SIZE)
 from jax_llama.data_utils import Dataset
-from jax_llama.model import SimpleModel
+from jax_llama.model import Llama
 from jax_llama.tokenizer import SimpleTokenizer
 
 
@@ -110,7 +110,7 @@ tokenizer = SimpleTokenizer(DATA_FILE)
 dataset = Dataset(DATA_FILE, tokenizer)
 xs, _ = dataset.get_batch('train')
 rng = jax.random.PRNGKey(0)
-model = SimpleModel()
+model = Llama()
 print(nn.tabulate(model, rng)(xs))
 state = init_train_state(model, rng, xs)
 state = train_and_validate(dataset, state)
