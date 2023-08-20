@@ -1,5 +1,5 @@
-matplotlib
-jax
-jaxlib
-flax
-clu
+matplotlib<=3.7.2
+jax<=0.4.14
+jaxlib<=0.4.14
+flax<=0.7.2
+clu<=0.0.9

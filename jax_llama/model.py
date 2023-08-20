@@ -1,11 +1,10 @@
+import matplotlib.pyplot as plt
+import seaborn as sns
 from flax import linen as nn
 from jax import numpy as jnp
-from jax_llama.config import (
-    CONTEXT_WINDOW, D_MODEL, VOCAB_SIZE,
-    N_HEADS, N_LAYES,
-)
-import seaborn as sns
-import matplotlib.pyplot as plt
+
+from jax_llama.config import (CONTEXT_WINDOW, D_MODEL, N_HEADS, N_LAYES,
+                              VOCAB_SIZE)
 
 
 class Llama(nn.Module):

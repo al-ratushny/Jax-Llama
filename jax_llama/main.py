@@ -3,8 +3,9 @@ import numpy as np
 import optax
 from flax import linen as nn
 from flax.training import train_state
+from jax import jit
 from jax import numpy as jnp
-from tqdm import tqdm, trange
+from tqdm import trange
 
 from jax_llama.config import (CONTEXT_WINDOW, DATA_FILE, LR, N_EPOCHS,
                               TEST_STEPS, TRAIN_STEPS, VOCAB_SIZE)
@@ -40,7 +41,7 @@ def init_train_state(
     return state
 
 
-@jax.jit
+@jit
 def train_step(state, xs, ys):
     def loss_fn(params):
         logits = state.apply_fn({'params': params}, xs)
@@ -56,7 +57,7 @@ def train_step(state, xs, ys):
     return state, metrics
 
 
-@jax.jit
+@jit
 def test_step(state, xs, ys):
     logits = state.apply_fn({'params': state.params}, xs)
     return compute_metrics(logits, ys)
@@ -71,22 +72,28 @@ def accumulate_metrics(metrics):
 def train_and_validate(dataset: Dataset, state: train_state.TrainState):
     for epoch in range(N_EPOCHS):
         train_metrics = []
-        for step in trange(TRAIN_STEPS):
+        for step in (pbar := trange(TRAIN_STEPS)):
             xs, ys = dataset.get_batch('train')
             state, metrics = train_step(state, xs, ys)
             train_metrics.append(metrics)
             if step % 10 == 0:
-                tqdm.write(f'train; {epoch}/{N_EPOCHS}; {step}/{TRAIN_STEPS}; {metrics}')
+                pbar.set_description(
+                    f'train; {epoch}/{N_EPOCHS}; {step}/{TRAIN_STEPS}; '
+                    f'accuracy={metrics["accuracy"]}; loss={metrics["loss"]}',
+                )
         print(accumulate_metrics(train_metrics[-100:]))
         train_metrics = []
 
         test_metrics = []
-        for step in trange(TEST_STEPS):
+        for step in (pbar := trange(TEST_STEPS)):
             xs, ys = dataset.get_batch('test')
             metrics = test_step(state, xs, ys)
             test_metrics.append(metrics)
             if step % 10 == 0:
-                tqdm.write(f'test; {epoch}/{N_EPOCHS}; {step}/{TEST_STEPS}; {metrics}')
+                pbar.set_description(
+                    f'test; {epoch}/{N_EPOCHS}; {step}/{TEST_STEPS}; '
+                    f'accuracy={metrics["accuracy"]}; loss={metrics["loss"]}',
+                )
         print(accumulate_metrics(test_metrics[-100:]))
         test_metrics = []
 
@@ -102,7 +109,6 @@ def predict(state, xs, n_tokens=10):
         last_prediction = logits[-1, -1]
         p = nn.softmax(last_prediction, axis=-1)
         xs = jnp.append(xs, jnp.argmax(p))
-        print(xs)
     return tokenizer.decode(xs)
 
 
