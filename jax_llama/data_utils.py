@@ -6,6 +6,13 @@ from jax_llama.config import BATCH_SIZE, CONTEXT_WINDOW, TRAIN_SIZE
 
 class Dataset:
     def __init__(self, path: str, tokenizer):
+        """
+        It loads a text file from a given file and tokenizes it.
+
+        Args:
+            path: The path to a file.
+            tokenizer: The simple tokenizer.
+        """
         text = open(path, 'rt').read()
         self.dataset = jnp.array(tokenizer.encode(text))
         self.key = jax.random.PRNGKey(0)
@@ -16,16 +23,25 @@ class Dataset:
 
     @property
     def n_train_steps(self):
+        """Returns the number of training steps."""
         return len(self.train) // BATCH_SIZE
 
     @property
     def n_test_steps(self):
+        """Returns the number of testing steps."""
         return len(self.test) // BATCH_SIZE
 
     def get_batch(
         self,
         split: str,
     ) -> tuple:
+        """
+        Returns a tuple of x and y for a given split.
+        This method randomly selects a batch of data.
+
+        Args:
+            split: Can be `train` or `test`.
+        """
         if split == 'train':
             batch_data = self.train
         elif split == 'test':

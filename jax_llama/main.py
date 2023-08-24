@@ -15,6 +15,14 @@ from jax_llama.tokenizer import SimpleTokenizer
 
 
 def cross_entropy_loss(logits, labels):
+    """
+    Computes the cross-entropy loss between the predicted logits and the true labels.
+
+    Args:
+        logits: The predicted logits, which are the output of the model
+            before the softmax activation function is applied.
+        labels: The true labels for the input data.
+    """
     one_hot_encoded_labels = jax.nn.one_hot(labels, VOCAB_SIZE)
     loss = optax.softmax_cross_entropy(
         logits=logits, labels=one_hot_encoded_labels
@@ -23,6 +31,14 @@ def cross_entropy_loss(logits, labels):
 
 
 def compute_metrics(logits, labels):
+    """
+    Computes the loss and accuracy metrics based on the predicted logits and true labels.
+
+    Args:
+        logits: The predicted logits, which are the output of the model
+            before the softmax activation function is applied.
+        labels: The true labels for the input data.
+    """
     loss = jnp.mean(cross_entropy_loss(logits, labels))
     accuracy = jnp.mean(jnp.argmax(logits, -1) == labels)
     return {'loss': loss, 'accuracy': accuracy}
@@ -31,6 +47,15 @@ def compute_metrics(logits, labels):
 def init_train_state(
     model, rng, x,
 ) -> train_state.TrainState:
+    """
+    Initializes the training state for a given model,
+    random number generator (RNG), and input data.
+
+    Args:
+        model: The model for which the training state is being initialized.
+        rng: The random number generator used for initialization.
+        x: The input data.
+    """
     params = model.init(rng, x)['params']
     optimizer = optax.adam(LR)
     state = train_state.TrainState.create(
@@ -43,6 +68,7 @@ def init_train_state(
 
 @jit
 def train_step(state, xs, ys):
+    """Performs a single training step using a given state."""
     def loss_fn(params):
         logits = state.apply_fn({'params': params}, xs)
         loss = cross_entropy_loss(logits, ys)
@@ -59,17 +85,20 @@ def train_step(state, xs, ys):
 
 @jit
 def test_step(state, xs, ys):
+    """Performs a single test step using."""
     logits = state.apply_fn({'params': state.params}, xs)
     return compute_metrics(logits, ys)
 
 
 def accumulate_metrics(metrics):
+    """Computes mean value for all the metrics."""
     return {
         k: np.mean([metric[k] for metric in metrics]) for k in metrics[0]
     }
 
 
 def train_and_validate(dataset: Dataset, state: train_state.TrainState):
+    """Provides a training loop for a given number of epochs."""
     for epoch in range(N_EPOCHS):
         train_metrics = []
         for step in (pbar := trange(TRAIN_STEPS)):
@@ -101,6 +130,7 @@ def train_and_validate(dataset: Dataset, state: train_state.TrainState):
 
 
 def predict(state, xs, n_tokens=10):
+    """Generates predictions for a given input sequence using a trained model."""
     for i in range(n_tokens):
         logits = state.apply_fn(
             {'params': state.params},
@@ -109,17 +139,23 @@ def predict(state, xs, n_tokens=10):
         last_prediction = logits[-1, -1]
         p = nn.softmax(last_prediction, axis=-1)
         xs = jnp.append(xs, jnp.argmax(p))
-    return tokenizer.decode(xs)
+    return tokenizer.decode(xs.tolist())
 
 
-tokenizer = SimpleTokenizer(DATA_FILE)
-dataset = Dataset(DATA_FILE, tokenizer)
-xs, _ = dataset.get_batch('train')
-rng = jax.random.PRNGKey(0)
-model = Llama()
-print(nn.tabulate(model, rng)(xs))
-state = init_train_state(model, rng, xs)
-state = train_and_validate(dataset, state)
+if __name__ == '__main__':
+    # init
+    jax.config.update('jax_platform_name', 'cpu')
+    tokenizer = SimpleTokenizer(DATA_FILE)
+    dataset = Dataset(DATA_FILE, tokenizer)
+    xs, _ = dataset.get_batch('train')
+    rng = jax.random.PRNGKey(0)
+    model = Llama()
+    print(nn.tabulate(model, rng)(xs))
+    state = init_train_state(model, rng, xs)
 
-prediction = predict(state, tokenizer.encode('You are all resolved'))
-print(prediction)
+    # train
+    state = train_and_validate(dataset, state)
+
+    # predict
+    prediction = predict(state, tokenizer.encode('You are all resolved'))
+    print(prediction)
